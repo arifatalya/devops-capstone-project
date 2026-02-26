@@ -49,4 +49,58 @@ spec:
           # Delete files and directories starting with .. plus any other character
           rm -rf "${WORKSPACE_SOURCE_PATH}"/..?*
         fi
-
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: nose
+spec:
+  description: This task will run nosetests on the provided source code
+  workspaces:
+    - name: source
+  params:
+    - name: args
+      description: Arguments to pass to nose
+      type: string
+      default: "-v"
+    - name: database_uri
+      description: Database connection string
+      type: string
+      default: "sqlite:///test.db"
+  steps:
+    - name: run-tests
+      image: python:3.9-slim
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: DATABASE_URI
+          value: $(params.database_uri)
+      script: |
+        #!/bin/bash
+        set -e
+        
+        echo "Installing dependencies..."
+        pip install --upgrade pip wheel
+        pip install -r requirements.txt
+        
+        echo "Running tests with nose..."
+        nosetests $(params.args)
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy-image
+spec:
+  params:
+    - name: app_name
+    - name: image_url
+  steps:
+    - name: deploy
+      image: quay.io/openshift/origin-cli:latest
+      command: ["/bin/bash", "-c"]
+      args:
+        - |-
+          #!/bin/bash
+          set -e
+          oc get deployment $(params.app_name) || oc create deployment $(params.app_name) --image=$(params.image_url)
+          oc set image deployment/$(params.app_name) $(params.app_name)=$(params.image_url)
+          oc rollout restart deployment/$(params.app_name)

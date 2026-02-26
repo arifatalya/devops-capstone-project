@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: accounts
-        image: us.icr.io/sn-labs-change12123/accounts:1  # ← Your namespace
+        image: us.icr.io/sn-labs-change12123/accounts:1
         ports:
         - containerPort: 8080
           protocol: TCP
